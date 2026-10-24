@@ -3,10 +3,12 @@ package au.sam.cards
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.exifinterface.media.ExifInterface
 import org.json.JSONArray
 import java.io.File
 import java.util.UUID
@@ -25,14 +27,24 @@ class Store(private val ctx: Context) {
     var email: String
         get() = prefs.getString("email", "") ?: ""
         set(v) = prefs.edit().putString("email", v).apply()
-    private var signedInState by mutableStateOf(prefs.getBoolean("signedIn", false))
-    private var offlineState by mutableStateOf(prefs.getBoolean("offline", false))
-    var signedIn: Boolean
-        get() = signedInState
-        set(v) { signedInState = v; prefs.edit().putBoolean("signedIn", v).apply() }
-    var offline: Boolean
-        get() = offlineState
-        set(v) { offlineState = v; prefs.edit().putBoolean("offline", v).apply() }
+
+    /** "" (not chosen yet), "drive", "folder" or "s3". Cards are always kept in one of these; the phone only caches. */
+    private var storageState by mutableStateOf(
+        prefs.getString("storage", "")!!.ifEmpty { if (prefs.getBoolean("signedIn", false)) "drive" else "" }
+    )
+    var storage: String
+        get() = storageState
+        set(v) { storageState = v; prefs.edit().putString("storage", v).apply() }
+    var folderUri: String
+        get() = prefs.getString("folderUri", "") ?: ""
+        set(v) = prefs.edit().putString("folderUri", v).apply()
+    var s3: S3Config
+        get() = S3Config(
+            prefs.getString("s3endpoint", "")!!, prefs.getString("s3region", "auto")!!, prefs.getString("s3bucket", "")!!,
+            prefs.getString("s3key", "")!!, prefs.getString("s3secret", "")!!,
+        )
+        set(v) = prefs.edit().putString("s3endpoint", v.endpoint).putString("s3region", v.region).putString("s3bucket", v.bucket)
+            .putString("s3key", v.accessKey).putString("s3secret", v.secretKey).apply()
     var lockEnabled: Boolean
         get() = prefs.getBoolean("lock", true)
         set(v) = prefs.edit().putBoolean("lock", v).apply()
@@ -107,8 +119,8 @@ class Store(private val ctx: Context) {
 
     fun hasImage(name: String) = imageFile(name).exists()
 
-    /** Decode a picked/captured photo, shrink it, and keep it as a new local image file. */
-    fun importImage(uri: Uri): String? = try {
+    /** Decode a picked/captured photo (honouring its EXIF rotation) to a bitmap of at most ~3200px. */
+    fun decode(uri: Uri): Bitmap? = try {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
         var sample = 1
@@ -116,13 +128,35 @@ class Store(private val ctx: Context) {
         val bmp = ctx.contentResolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
         }!!
+        val orientation = ctx.contentResolver.openInputStream(uri)?.use {
+            ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        } ?: ExifInterface.ORIENTATION_NORMAL
+        val deg = when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        if (deg == 0f) bmp else Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(deg) }, true)
+    } catch (_: Exception) {
+        null
+    }
+
+    /** Shrink to at most 1600px, keep as a new local image file and return its name. */
+    fun saveBitmap(bmp: Bitmap): String {
         val scale = minOf(1f, 1600f / maxOf(bmp.width, bmp.height))
         val out = if (scale < 1f) Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true) else bmp
         val name = "img-" + UUID.randomUUID().toString().replace("-", "").take(16) + ".jpg"
         imageFile(name).outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 85, it) }
-        name
-    } catch (_: Exception) {
-        null
+        return name
+    }
+
+    /** After moving to a different storage: every card counts as not yet stored there, so nothing is mistaken for "deleted elsewhere". */
+    @Synchronized
+    fun resetSync() {
+        commit(cards.map { it.copy(everSynced = false) })
+        writeDeleted(emptySet())
+        lastSync = 0
     }
 
     /** Remove images no card refers to any more (abandoned edits). */
@@ -132,6 +166,10 @@ class Store(private val ctx: Context) {
     }
 
     fun wipe() {
+        storage = ""
+        folderUri = ""
+        s3 = S3Config()
+        email = ""
         commit(emptyList())
         writeDeleted(emptySet())
         imgDir.listFiles()?.forEach { it.delete() }

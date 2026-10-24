@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Emulator tests talk to mock servers over http. Release builds are https only. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

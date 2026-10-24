@@ -32,6 +32,10 @@ data class Card(
 ) {
     fun images() = listOf(front, back).filter { it.isNotEmpty() }
 
+    /** True once the last day of the expiry month has passed. Cards with no readable expiry never expire. */
+    val expired: Boolean
+        get() = expiryEndMillis(expiry)?.let { System.currentTimeMillis() >= it } ?: false
+
     fun toJson(local: Boolean = false) = JSONObject().apply {
         put("id", id); put("type", type); put("name", name); put("number", number)
         put("holder", holder); put("expiry", expiry); put("cvv", cvv); put("pin", pin)
@@ -50,4 +54,20 @@ data class Card(
             updated = o.optLong("updated"), everSynced = o.optBoolean("everSynced"),
         )
     }
+}
+
+private val expiryRe = Regex("""^\s*(\d{1,2})\s*[/\-.]?\s*(\d{2}|\d{4})\s*$""")
+
+/** (year, month) from "MM/YY", "MM/YYYY", "MMYY" and similar, or null. */
+fun parseExpiry(e: String): Pair<Int, Int>? {
+    val m = expiryRe.matchEntire(e) ?: return null
+    val month = m.groupValues[1].toInt()
+    val year = m.groupValues[2].toInt().let { if (m.groupValues[2].length == 2) it + 2000 else it }
+    return if (month in 1..12) year to month else null
+}
+
+fun formatExpiry(year: Int, month: Int) = "%02d/%02d".format(month, year % 100)
+
+private fun expiryEndMillis(e: String): Long? = parseExpiry(e)?.let { (y, m) ->
+    java.time.YearMonth.of(y, m).plusMonths(1).atDay(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
 }

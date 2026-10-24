@@ -1,6 +1,7 @@
 package au.sam.cards
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ class MainActivity : FragmentActivity() {
     var unlocked by mutableStateOf(false)
     var syncing by mutableStateOf(false)
     var status by mutableStateOf("")
+    var changingStorage by mutableStateOf(false)
 
     private var authWait: CompletableDeferred<Intent?>? = null
     private val authLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
@@ -101,6 +103,17 @@ class MainActivity : FragmentActivity() {
         return res.accessToken
     }
 
+    /** Make [kind] the storage. Moving to a different place re-uploads everything there. */
+    private fun adopt(kind: String, folder: String = "", s3: S3Config? = null) {
+        val changed = kind != store.storage || (kind == "folder" && folder != store.folderUri) || (kind == "s3" && s3 != store.s3)
+        if (changed && store.storage.isNotEmpty()) store.resetSync()
+        store.storage = kind
+        if (kind == "folder") store.folderUri = folder
+        if (kind == "s3") store.s3 = s3!!
+        changingStorage = false
+        sync(interactive = true)
+    }
+
     fun signIn() {
         lifecycleScope.launch {
             try {
@@ -108,29 +121,67 @@ class MainActivity : FragmentActivity() {
                     status = "Sign-in cancelled"
                     return@launch
                 }
-                store.signedIn = true
-                store.offline = false
-                sync(interactive = true)
+                adopt("drive")
             } catch (e: Exception) {
                 status = "Sign-in failed: ${e.message}"
             }
         }
     }
 
-    fun signOut() {
-        store.signedIn = false
-        store.email = ""
+    private val folderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) connectFolder(uri)
+    }
+
+    fun pickFolder() = folderLauncher.launch(null)
+
+    private fun connectFolder(uri: Uri) {
+        if (!BuildConfig.ALLOW_LOCAL && uri.authority in setOf("com.android.externalstorage.documents", "com.android.providers.downloads.documents")) {
+            status = "That folder is on this phone. Pick a folder inside a cloud app (Dropbox, OneDrive, Nextcloud...)."
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                withContext(Dispatchers.IO) { SafBackend(this@MainActivity, uri).list() }
+                adopt("folder", folder = uri.toString())
+            } catch (e: Exception) {
+                status = "Can't use that folder: ${e.message}"
+            }
+        }
+    }
+
+    fun connectS3(cfg: S3Config) {
+        lifecycleScope.launch {
+            status = "Testing connection…"
+            try {
+                withContext(Dispatchers.IO) { S3Backend(cfg).list() }
+                adopt("s3", s3 = cfg)
+            } catch (e: Exception) {
+                status = "Can't connect: ${e.message}"
+            }
+        }
+    }
+
+    /** Forget the storage and clear this phone. Cloud copies are left alone. */
+    fun disconnect() {
         store.wipe()
         status = ""
     }
 
+    private suspend fun backend(interactive: Boolean): Backend? = when (store.storage) {
+        "drive" -> token(interactive)?.let { DriveBackend(it) }
+        "folder" -> SafBackend(this, Uri.parse(store.folderUri))
+        "s3" -> S3Backend(store.s3)
+        else -> null
+    }
+
     fun sync(interactive: Boolean) {
-        if (syncing || !store.signedIn) return
+        if (syncing || store.storage.isEmpty()) return
         syncing = true
         lifecycleScope.launch {
             status = try {
-                val t = token(interactive) ?: throw IllegalStateException("Google needs you to sign in again (Settings)")
-                val r = withContext(Dispatchers.IO) { Sync.run(store, Drive(t)) }
+                val b = backend(interactive) ?: throw IllegalStateException("Google needs you to sign in again (Settings)")
+                val r = withContext(Dispatchers.IO) { Sync.run(store, b) }
                 "Synced: ${r.up} up, ${r.down} down" + if (r.removed > 0) ", ${r.removed} removed" else ""
             } catch (e: Exception) {
                 "Sync failed: ${e.message}"

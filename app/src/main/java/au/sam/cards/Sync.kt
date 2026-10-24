@@ -7,16 +7,16 @@ import org.json.JSONObject
  * file list alone says which side is newer; images are `img-*.jpg`, named once and never rewritten.
  */
 object Sync {
-    private val cardName = Regex("""card-([0-9a-f]+)-(\d+)\.json""")
+    private val cardName = Regex("""card-(\w+)-(\d+)\.json""")
 
     class Report(val up: Int, val down: Int, val removed: Int)
 
     @Synchronized
-    fun run(store: Store, drive: Drive): Report {
+    fun run(store: Store, drive: Backend): Report {
         var up = 0; var down = 0; var removed = 0
         val files = drive.list()
-        val versions = HashMap<String, MutableList<Triple<Long, DriveFile, String>>>()
-        val images = HashMap<String, DriveFile>()
+        val versions = HashMap<String, MutableList<Triple<Long, RemoteFile, String>>>()
+        val images = HashMap<String, RemoteFile>()
         for (f in files) {
             val m = cardName.matchEntire(f.name)
             if (m != null) versions.getOrPut(m.groupValues[1]) { mutableListOf() } += Triple(m.groupValues[2].toLong(), f, f.name)
@@ -29,7 +29,7 @@ object Sync {
         store.writeDeleted(emptySet())
 
         // Cards: newest version per id wins; extra versions are leftovers.
-        val best = HashMap<String, Pair<Long, DriveFile>>()
+        val best = HashMap<String, Pair<Long, RemoteFile>>()
         for ((id, list) in versions) {
             val top = list.maxBy { it.first }
             best[id] = top.first to top.second
@@ -60,7 +60,7 @@ object Sync {
         for (c in store.cards) for (img in c.images()) {
             wanted += img
             if (!store.hasImage(img)) images[img]?.let { store.imageFile(img).writeBytes(drive.download(it.id)) }
-            else if (img !in images) images[img] = DriveFile(drive.upload(img, "image/jpeg", store.imageFile(img).readBytes()), img)
+            else if (img !in images) images[img] = RemoteFile(drive.upload(img, "image/jpeg", store.imageFile(img).readBytes()), img)
         }
         for ((name, f) in images) if (name !in wanted) drive.delete(f.id)
 

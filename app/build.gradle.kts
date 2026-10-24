@@ -18,11 +18,13 @@ android {
         applicationId = "au.sam.cards"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         resourceConfigurations += listOf("en")
         // Test builds only: point the Drive client at a mock server and skip Google sign-in.
         buildConfigField("String", "MOCK_DRIVE", "\"${local.getProperty("cards.mockDrive", "")}\"")
+        // Test builds only: allow picking a folder on the phone itself (release builds refuse it).
+        buildConfigField("boolean", "ALLOW_LOCAL", local.getProperty("cards.allowLocalFolder", "false"))
     }
 
     buildFeatures {
@@ -32,6 +34,8 @@ android {
 
     buildTypes {
         release {
+            // The bundled OCR/barcode models are large per CPU type; phones are all arm64.
+            ndk { abiFilters += "arm64-v8a" }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -65,4 +69,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
 }
