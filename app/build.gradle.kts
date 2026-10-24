@@ -18,8 +18,8 @@ android {
         applicationId = "au.sam.cards"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         resourceConfigurations += listOf("en")
         // Test builds only: point the Drive client at a mock server and skip Google sign-in.
         buildConfigField("String", "MOCK_DRIVE", "\"${local.getProperty("cards.mockDrive", "")}\"")
@@ -58,6 +58,7 @@ kotlin {
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.09.01"))
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.activity:activity-compose:1.11.0")

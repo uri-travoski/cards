@@ -19,6 +19,8 @@ first run and changeable in Settings (switching re-uploads everything to the new
 - Not encrypted by the app: card data (including CVV/PIN) is readable by whoever runs the storage.
 - Sync (`Sync.kt`): each card is `card-<id>-<updated>.json`, images are `img-*.jpg`. Newest `updated` wins; deletions
   propagate. Runs on launch, after every save/delete, and on the Sync button. Works offline, syncs later.
+- Help (question-mark icon): full setup guide for each storage, including the Google Cloud steps with this install's package and SHA-1.
+- Settings has Check for updates / Update now, which compares with the latest GitHub release and opens the APK link.
 - App lock with the phone's screen lock (also sets FLAG_SECURE, so no screenshots). Toggle in Settings.
 
 ## One-time Google setup (required before sign-in works)

@@ -3,6 +3,7 @@ package au.sam.cards
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -31,7 +32,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -75,9 +79,9 @@ import kotlin.math.sin
 // Corner radii: Material's defaults and the earlier look, each made 20% tighter.
 private val SmallShape = RoundedCornerShape(6.4.dp)
 private val CardShape = RoundedCornerShape(14.4.dp)
-private val RowShape = RoundedCornerShape(11.2.dp)
+val RowShape = RoundedCornerShape(11.2.dp)
 private val PhotoShape = RoundedCornerShape(9.6.dp)
-private val ButtonShape = RoundedCornerShape(percent = 40) // pill buttons are 50%
+val ButtonShape = RoundedCornerShape(percent = 40) // pill buttons are 50%
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(3.2.dp), small = SmallShape, medium = PhotoShape,
@@ -132,13 +136,18 @@ private fun LockScreen(a: MainActivity) = Column(
 @Composable
 private fun SetupScreen(a: MainActivity) {
     var s3Form by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf(false) }
+    if (help) HelpDialog { help = false }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (a.store.storage.isNotEmpty()) TBtn({ if (s3Form) s3Form = false else a.changingStorage = false }) { Text("‹ Back") }
-        else Spacer(Modifier.height(24.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (a.store.storage.isNotEmpty()) TBtn({ if (s3Form) s3Form = false else a.changingStorage = false }) { Text("‹ Back") }
+            Spacer(Modifier.weight(1f))
+            IconButton({ help = true }) { Icon(HelpIcon, "Help") }
+        }
         Text("Cards", fontSize = 36.sp, fontWeight = FontWeight.Bold)
         if (!s3Form) {
             Text("Where should your cards be saved? They are kept in the cloud, so any phone you connect gets them all back.")
-            Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive.") { a.signIn() }
+            Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive. Needs a one-time Google Cloud setup: tap the help icon for the steps.") { a.signIn() }
             Choice("Cloud folder", "Pick a folder inside Dropbox, OneDrive, Nextcloud or another cloud app on this phone.") { a.pickFolder() }
             Choice("S3 / Backblaze B2 / Cloudflare R2", "Your own bucket on any S3-compatible service.") { s3Form = true }
         } else S3Form(a)
@@ -196,6 +205,8 @@ private fun SectionHeader(text: String, count: Int) = Text(
 private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, onSettings: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("") }
+    var menu by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf(false) }
     val shown = a.store.cards.filter {
         (type.isEmpty() || it.type == type) &&
             (query.isBlank() || it.name.contains(query, true) || it.number.contains(query, true) || it.notes.contains(query, true))
@@ -208,17 +219,24 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
             Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Cards", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else TBtn({ a.sync(true) }) { Text("Sync") }
-                TBtn(onSettings) { Text("Settings") }
+                else IconButton({ a.sync(true) }) { Icon(Icons.Default.Refresh, "Sync") }
+                IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
+                IconButton({ help = true }) { Icon(HelpIcon, "Help") }
             }
             if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
-            OutlinedTextField(
-                query, { query = it }, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("Search") }, singleLine = true,
-            )
-            LazyRow(Modifier.padding(bottom = 4.dp), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { FilterChip(type.isEmpty(), { type = "" }, { Text("All") }) }
-                items(TYPES) { (k, v) -> FilterChip(type == k, { type = if (type == k) "" else k }, { Text(v) }) }
+            Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(query, { query = it }, Modifier.weight(1f), placeholder = { Text("Search") }, singleLine = true)
+                Box {
+                    IconButton({ menu = true }) {
+                        Icon(FilterIcon, "Filter", tint = if (type.isEmpty()) LocalContentColor.current else MaterialTheme.colorScheme.primary)
+                    }
+                    DropdownMenu(menu, { menu = false }) {
+                        DropdownMenuItem({ Text("All") }, { type = ""; menu = false }, leadingIcon = { if (type.isEmpty()) Icon(Icons.Default.Check, null) })
+                        TYPES.forEach { (k, v) ->
+                            DropdownMenuItem({ Text(v) }, { type = k; menu = false }, leadingIcon = { if (type == k) Icon(Icons.Default.Check, null) })
+                        }
+                    }
+                }
             }
             if (shown.isEmpty()) {
                 Text(
@@ -236,7 +254,11 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
                 gridItems(expired, key = { it.id }) { c -> CardTile(c) { onOpen(c.id) } }
             }
         }
-        FloatingActionButton(onAdd, Modifier.align(Alignment.BottomEnd).padding(20.dp)) { Text("+", fontSize = 28.sp) }
+        FloatingActionButton(
+            onAdd, Modifier.align(Alignment.BottomEnd).padding(20.dp), shape = CircleShape,
+            containerColor = Color(0xFFFF8F00), contentColor = Color.White,
+        ) { Icon(Icons.Default.Add, "Add card") }
+        if (help) HelpDialog { help = false }
     }
 }
 
@@ -711,6 +733,16 @@ private fun storageLabel(a: MainActivity) = when (a.store.storage) {
 private fun SettingsDialog(a: MainActivity, onClose: () -> Unit) {
     var confirmOut by remember { mutableStateOf(false) }
     var lock by remember { mutableStateOf(a.store.lockEnabled) }
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // "" = not checked, "checking", "error", otherwise the latest version name
+    var latest by remember { mutableStateOf("") }
+    fun check() {
+        latest = "checking"
+        scope.launch { latest = latestVersion() ?: "error" }
+    }
+    LaunchedEffect(Unit) { check() }
+    val newer = latest.isNotEmpty() && latest != "checking" && latest != "error" && isNewer(latest, BuildConfig.VERSION_NAME)
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text("Settings") },
@@ -731,6 +763,20 @@ private fun SettingsDialog(a: MainActivity, onClose: () -> Unit) {
                         Text("Also blocks screenshots", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                     }
                     Switch(lock, { lock = it; a.setLock(it) })
+                }
+                Text(
+                    "Version ${BuildConfig.VERSION_NAME}: " + when {
+                        latest == "checking" -> "checking for updates…"
+                        latest == "error" -> "could not check for updates"
+                        newer -> "version $latest is available"
+                        latest.isNotEmpty() -> "up to date"
+                        else -> ""
+                    },
+                    fontSize = 13.sp, color = MaterialTheme.colorScheme.outline,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OBtn({ check() }, enabled = latest != "checking") { Text("Check for updates") }
+                    if (newer) Btn({ ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(APK_URL))) }) { Text("Update now") }
                 }
                 TBtn({ confirmOut = true }) { Text("Remove cards from this phone", color = MaterialTheme.colorScheme.error) }
             }
