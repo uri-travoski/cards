@@ -1,5 +1,7 @@
 # Cards
 
+**[Download the latest APK](https://github.com/uri-travoski/cards/releases/latest/download/cards.apk)** (Android 8+, 64-bit ARM). Open the file on your phone and allow installing from your browser.
+
 Android app (Kotlin + Compose, package `au.sam.cards`) for bank, credit and loyalty cards, replacing Mobile Pocket.
 Cards always live in the cloud, never only on the phone (the phone keeps a cache). Three storage options, chosen on
 first run and changeable in Settings (switching re-uploads everything to the new place):
