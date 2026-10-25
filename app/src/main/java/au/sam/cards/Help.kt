@@ -33,6 +33,9 @@ private fun icon(name: String, d: String): ImageVector =
         .addPath(PathParser().parsePathString(d).toNodes(), fill = SolidColor(Color.Black)).build()
 
 val FilterIcon: ImageVector by lazy { icon("filter", "M10,18h4v-2h-4v2zM3,6v2h18V6H3zm3,7h12v-2H6v2z") }
+val SyncIcon: ImageVector by lazy {
+    icon("sync", "M12,4V1L8,5l4,4V6c3.31,0 6,2.69 6,6 0,1.01 -0.25,1.97 -0.7,2.8l1.46,1.46C19.54,15.03 20,13.57 20,12c0,-4.42 -3.58,-8 -8,-8zM12,18c-3.31,0 -6,-2.69 -6,-6 0,-1.01 0.25,-1.97 0.7,-2.8L5.24,7.74C4.46,8.97 4,10.43 4,12c0,4.42 3.58,8 8,8v3l4,-4 -4,-4v3z")
+}
 val HelpIcon: ImageVector by lazy {
     icon("help", "M11,18h2v-2h-2v2zM12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8zM12,6c-2.21,0 -4,1.79 -4,4h2c0,-1.1 0.9,-2 2,-2s2,0.9 2,2c0,2 -3,1.75 -3,5h2c0,-2.25 3,-2.5 3,-5 0,-2.21 -1.79,-4 -4,-4z")
 }
@@ -97,13 +100,13 @@ private val SECTIONS: List<Section> = listOf(
     Section("Finding cards",
         "Type in the search box to search names, numbers and notes. Tap the filter icon next to it to show one type only, or All. Active cards are listed first and Expired cards below, each group A to Z, two per row. Expired cards are dimmed and show the expiry date."),
     Section("Sync",
-        "Cards sync when the app opens and after every save or delete. Tap the refresh icon to sync now. It works offline and catches up later. The small line under the title shows the last result or error. If the same card is edited on two phones, the latest edit wins."),
+        "Cards sync when the app opens and after every save or delete. Tap the sync icon (two circling arrows) to sync now. It works offline and catches up later. The small line under the title shows the last result or error. If the same card is edited on two phones, the latest edit wins."),
     Section("Security and privacy",
         "The app locks with your fingerprint, face or screen lock and locks again after 30 seconds in the background. Screenshots are blocked. You can turn the lock off in Settings.\n\nThe app does not yet encrypt cards itself. They travel over HTTPS and your provider encrypts them on its disks, but whoever can open the storage account can read them, including CVV and PIN. Protect that account with a strong password and two-step verification, and consider leaving CVV and PIN out."),
     Section("Settings (gear icon)",
-        "Shows where cards are saved and the last sync time. Change storage, turn the lock on or off, or Remove cards from this phone. Removing only clears this phone, your cloud copy stays, and connecting again brings the cards back."),
+        "Help is here too (Help and setup guide). Shows where cards are saved and the last sync time. Change storage, turn the lock on or off, or Remove cards from this phone. Removing only clears this phone, your cloud copy stays, and connecting again brings the cards back."),
     Section("Troubleshooting",
-        "• Nothing syncs: check the internet and tap refresh. Read the line under the title.\n• Cards missing on a new phone: connect the same account, folder or bucket, not a new one.\n• Barcode will not scan in a shop: the app already sets full brightness. Clean the screen and hold the phone flat and steady.\n• Cloud folder refused: you picked a folder on the phone. Pick one under a cloud app.\n• Moving from another app: there is no import yet. Add cards by hand, or photograph them and read expiry and barcode from the photo."),
+        "• Nothing syncs: check the internet and tap the sync icon. Read the line under the title.\n• Cards missing on a new phone: connect the same account, folder or bucket, not a new one.\n• Barcode will not scan in a shop: the app already sets full brightness. Clean the screen and hold the phone flat and steady.\n• Cloud folder refused: you picked a folder on the phone. Pick one under a cloud app.\n• Moving from another app: there is no import yet. Add cards by hand, or photograph them and read expiry and barcode from the photo."),
 )
 
 @Composable

@@ -189,7 +189,7 @@ private fun SetupScreen(a: MainActivity) {
         Text("Cards (Open Source)", fontSize = 30.sp, fontWeight = FontWeight.Bold)
         if (!s3Form) {
             Text("Where should your cards be saved? They are kept in the cloud, so any phone you connect gets them all back.")
-            Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive. Needs a one-time Google Cloud setup: tap the help icon for the steps.") { a.signIn() }
+            Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive. Needs a one-time Google Cloud setup: open Help for the steps (the question-mark icon here, or Settings, Help).") { a.signIn() }
             Choice("Cloud folder", "Pick a folder inside Dropbox, OneDrive, Nextcloud or another cloud app on this phone.") { a.pickFolder() }
             Choice("S3 / Backblaze B2 / Cloudflare R2", "Your own bucket on any S3-compatible service.") { s3Form = true }
         } else S3Form(a)
@@ -225,6 +225,7 @@ private fun S3Form(a: MainActivity) {
 private fun Cards(a: MainActivity) {
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var settings by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf(false) }
     when (val s = screen) {
         Screen.Home -> Home(a, onOpen = { screen = Screen.Detail(it) }, onAdd = { screen = Screen.Edit(Card()) }, onSettings = { settings = true })
         is Screen.Detail -> {
@@ -234,7 +235,8 @@ private fun Cards(a: MainActivity) {
         }
         is Screen.Edit -> Edit(a, s.card, onDone = { id -> screen = if (id == null || a.store.get(id) == null) Screen.Home else Screen.Detail(id) })
     }
-    if (settings) SettingsDialog(a) { settings = false }
+    if (settings) SettingsDialog(a, onHelp = { settings = false; help = true }) { settings = false }
+    if (help) HelpDialog { help = false }
 }
 
 @Composable
@@ -248,7 +250,6 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
     var query by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("") }
     var menu by remember { mutableStateOf(false) }
-    var help by remember { mutableStateOf(false) }
     val shown = a.store.cards.filter {
         (type.isEmpty() || it.type == type) &&
             (query.isBlank() || it.name.contains(query, true) || it.number.contains(query, true) || it.notes.contains(query, true))
@@ -264,9 +265,8 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
                     Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
                         if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        else IconButton({ a.sync(true) }) { Icon(Icons.Default.Refresh, "Sync") }
+                        else IconButton({ a.sync(true) }) { Icon(SyncIcon, "Sync") }
                         IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
-                        IconButton({ help = true }) { Icon(HelpIcon, "Help") }
                     }
                     if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .85f))
                 }
@@ -305,7 +305,6 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
             onAdd, Modifier.align(Alignment.BottomEnd).padding(20.dp), shape = CircleShape,
             containerColor = Color(0xFFFF8F00), contentColor = Color(0xFF1E1610),
         ) { Icon(Icons.Default.Add, "Add card") }
-        if (help) HelpDialog { help = false }
     }
 }
 
@@ -816,7 +815,7 @@ private fun storageLabel(a: MainActivity) = when (a.store.storage) {
 }
 
 @Composable
-private fun SettingsDialog(a: MainActivity, onClose: () -> Unit) {
+private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> Unit) {
     var confirmOut by remember { mutableStateOf(false) }
     var lock by remember { mutableStateOf(a.store.lockEnabled) }
     val ctx = LocalContext.current
@@ -842,6 +841,11 @@ private fun SettingsDialog(a: MainActivity, onClose: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OBtn({ a.sync(true) }, enabled = !a.syncing) { Text(if (a.syncing) "Syncing…" else "Sync now") }
                     OBtn({ onClose(); a.status = ""; a.changingStorage = true }) { Text("Change storage") }
+                }
+                OBtn(onHelp) {
+                    Icon(HelpIcon, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Help and setup guide")
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
