@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -106,13 +108,52 @@ private sealed interface Screen {
     class Edit(val card: Card) : Screen
 }
 
+// Warm orange palette. Primary is a deep orange so white text on buttons stays readable (contrast above 4.5).
+private val OrangeLight = lightColorScheme(
+    primary = Color(0xFFC25E00), onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDCC2), onPrimaryContainer = Color(0xFF3B1A00),
+    secondary = Color(0xFF8A5100), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFE0B8), onSecondaryContainer = Color(0xFF2C1600),
+    tertiary = Color(0xFF6C5E00), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFF7E58A), onTertiaryContainer = Color(0xFF211B00),
+    background = Color(0xFFFFF8F3), onBackground = Color(0xFF211A14),
+    surface = Color(0xFFFFF8F3), onSurface = Color(0xFF211A14),
+    surfaceVariant = Color(0xFFF5DFD0), onSurfaceVariant = Color(0xFF52443A),
+    outline = Color(0xFF857468), outlineVariant = Color(0xFFD8C3B5),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFFF1E6), surfaceContainer = Color(0xFFFBEADB),
+    surfaceContainerHigh = Color(0xFFF6E4D4), surfaceContainerHighest = Color(0xFFF0DECE),
+)
+
+private val OrangeDark = darkColorScheme(
+    primary = Color(0xFFFFB77C), onPrimary = Color(0xFF4C2700),
+    primaryContainer = Color(0xFF6C3A00), onPrimaryContainer = Color(0xFFFFDCC2),
+    secondary = Color(0xFFFFB95C), onSecondary = Color(0xFF472A00),
+    secondaryContainer = Color(0xFF653E00), onSecondaryContainer = Color(0xFFFFDDB4),
+    tertiary = Color(0xFFDAC96F), onTertiary = Color(0xFF393000),
+    tertiaryContainer = Color(0xFF524600), onTertiaryContainer = Color(0xFFF7E58A),
+    background = Color(0xFF1E1610), onBackground = Color(0xFFEDE0D5),
+    surface = Color(0xFF1E1610), onSurface = Color(0xFFEDE0D5),
+    surfaceVariant = Color(0xFF52443A), onSurfaceVariant = Color(0xFFD8C3B5),
+    outline = Color(0xFFA08D80), outlineVariant = Color(0xFF52443A),
+    surfaceContainerLowest = Color(0xFF181009), surfaceContainerLow = Color(0xFF271E17), surfaceContainer = Color(0xFF2B221A),
+    surfaceContainerHigh = Color(0xFF362C24), surfaceContainerHighest = Color(0xFF41372E),
+)
+
 @Composable
 fun App(a: MainActivity) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(),
+        colorScheme = if (isSystemInDarkTheme()) OrangeDark else OrangeLight,
         shapes = AppShapes,
     ) {
+        val view = LocalView.current
+        val dark = isSystemInDarkTheme()
+        SideEffect {
+            // The status bar strip below is the primary colour: dark in light theme (light icons), light in dark theme (dark icons).
+            (view.context as? android.app.Activity)?.window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = dark }
+        }
         Surface(Modifier.fillMaxSize()) {
+          Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(MaterialTheme.colorScheme.primary))
             Box(Modifier.systemBarsPadding().imePadding()) {
                 when {
                     !a.unlocked -> LockScreen(a)
@@ -121,6 +162,7 @@ fun App(a: MainActivity) {
                 }
             }
         }
+          }
     }
 }
 
@@ -197,7 +239,7 @@ private fun Cards(a: MainActivity) {
 
 @Composable
 private fun SectionHeader(text: String, count: Int) = Text(
-    "$text · $count", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.outline,
+    "$text · $count", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary,
     modifier = Modifier.padding(top = 8.dp),
 )
 
@@ -216,14 +258,19 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
     val expired = shown.filter { it.expired }.sortedBy { it.name.lowercase() }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
-                if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                else IconButton({ a.sync(true) }) { Icon(Icons.Default.Refresh, "Sync") }
-                IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
-                IconButton({ help = true }) { Icon(HelpIcon, "Help") }
+            // Solid orange header band; the status bar area above it is orange too.
+            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).padding(bottom = 8.dp)) {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+                    Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
+                        if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        else IconButton({ a.sync(true) }) { Icon(Icons.Default.Refresh, "Sync") }
+                        IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
+                        IconButton({ help = true }) { Icon(HelpIcon, "Help") }
+                    }
+                    if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .85f))
+                }
             }
-            if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
             Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(query, { query = it }, Modifier.weight(1f), placeholder = { Text("Search") }, singleLine = true)
                 Box {
@@ -256,7 +303,7 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
         }
         FloatingActionButton(
             onAdd, Modifier.align(Alignment.BottomEnd).padding(20.dp), shape = CircleShape,
-            containerColor = Color(0xFFFF8F00), contentColor = Color.White,
+            containerColor = Color(0xFFFF8F00), contentColor = Color(0xFF1E1610),
         ) { Icon(Icons.Default.Add, "Add card") }
         if (help) HelpDialog { help = false }
     }
