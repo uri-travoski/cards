@@ -11,7 +11,12 @@ import java.net.URLEncoder
  * drive.file: the app only sees files it created). Cards that older versions kept in the hidden appDataFolder are
  * moved into the visible folder the first time it is created (scope drive.appdata, used for that move only).
  */
-class DriveBackend(private val token: String, private val base: String = BuildConfig.MOCK_DRIVE.ifEmpty { "https://www.googleapis.com" }) : Backend {
+class DriveBackend(
+    private val token: String,
+    private val savedFolderId: String = "",
+    private val onFolder: (String) -> Unit = {},
+    private val base: String = BuildConfig.MOCK_DRIVE.ifEmpty { "https://www.googleapis.com" },
+) : Backend {
 
     private fun open(method: String, path: String, contentType: String? = null, body: ByteArray? = null): HttpURLConnection {
         val c = URL(base + path).openConnection() as HttpURLConnection
@@ -44,19 +49,42 @@ class DriveBackend(private val token: String, private val base: String = BuildCo
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
-    private fun folder(): String = folderId ?: findOrCreateFolder().also { folderId = it }
+    private fun folder(): String = folderId ?: findOrCreateFolder().also { folderId = it; onFolder(it) }
 
+    private fun firstFolder(q: String): String? {
+        val a = JSONObject(bytes(open("GET", "/drive/v3/files?q=${enc(q)}&fields=${enc("files(id)")}")).decodeToString()).getJSONArray("files")
+        return if (a.length() > 0) a.getJSONObject(0).getString("id") else null
+    }
+
+    /**
+     * The cards folder wherever it is in Drive, so it can be moved or renamed. In order: the id this phone remembers,
+     * a folder carrying this app's marker, a folder named "My Cards App" (the app only sees folders it created), and
+     * only then a new one.
+     */
     private fun findOrCreateFolder(): String {
-        val q = "mimeType='$FOLDER_MIME' and name='$FOLDER_NAME' and 'root' in parents and trashed=false"
-        val found = JSONObject(bytes(open("GET", "/drive/v3/files?q=${enc(q)}&fields=${enc("files(id)")}")).decodeToString()).getJSONArray("files")
-        if (found.length() > 0) return found.getJSONObject(0).getString("id")
-        val meta = JSONObject().put("name", FOLDER_NAME).put("mimeType", FOLDER_MIME).put("parents", org.json.JSONArray().put("root"))
+        if (savedFolderId.isNotEmpty()) {
+            try {
+                val j = JSONObject(bytes(open("GET", "/drive/v3/files/$savedFolderId?fields=${enc("id,trashed")}")).decodeToString())
+                if (!j.optBoolean("trashed")) return savedFolderId
+            } catch (e: DriveError) {
+                if (e.code != 404 && e.code != 403) throw e
+            }
+        }
+        firstFolder("mimeType='$FOLDER_MIME' and appProperties has { key='$MARKER' and value='1' } and trashed=false")?.let { return it }
+        firstFolder("mimeType='$FOLDER_MIME' and name='$FOLDER_NAME' and trashed=false")?.let { id ->
+            val c = open("PATCH", "/drive/v3/files/$id?fields=id", "application/json; charset=UTF-8", marker().toString().toByteArray())
+            bytes(c) // mark it so a later rename does not hide it
+            return id
+        }
+        val meta = marker().put("name", FOLDER_NAME).put("mimeType", FOLDER_MIME).put("parents", org.json.JSONArray().put("root"))
         val c = open("POST", "/drive/v3/files?fields=id", "application/json; charset=UTF-8", meta.toString().toByteArray())
         val id = JSONObject(bytes(c).decodeToString()).getString("id")
         created = true
         moveHiddenCards(id)
         return id
     }
+
+    private fun marker() = JSONObject().put("appProperties", JSONObject().put(MARKER, "1"))
 
     /** One-time move of cards from the old hidden app folder into [to]. Failing here never blocks the new folder. */
     private fun moveHiddenCards(to: String) {
@@ -112,6 +140,7 @@ class DriveBackend(private val token: String, private val base: String = BuildCo
 }
 
 const val FOLDER_NAME = "My Cards App"
+private const val MARKER = "cardsFolder"
 private const val FOLDER_MIME = "application/vnd.google-apps.folder"
 
 class DriveError(val code: Int, msg: String) : Exception("Drive $code: $msg")

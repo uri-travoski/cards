@@ -78,7 +78,7 @@ class MainActivity : FragmentActivity() {
             }
         })
         prompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder().setTitle("Unlock Cards").setAllowedAuthenticators(authenticators).build()
+            BiometricPrompt.PromptInfo.Builder().setTitle("Unlock My Cards").setAllowedAuthenticators(authenticators).build()
         )
     }
 
@@ -172,7 +172,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private suspend fun backend(interactive: Boolean): Backend? = when (store.storage) {
-        "drive" -> token(interactive)?.let { DriveBackend(it) }
+        "drive" -> token(interactive)?.let { DriveBackend(it, savedFolderId = store.driveFolderId, onFolder = { id -> store.driveFolderId = id }) }
         "folder" -> SafBackend(this, Uri.parse(store.folderUri))
         "s3" -> S3Backend(store.s3)
         else -> null

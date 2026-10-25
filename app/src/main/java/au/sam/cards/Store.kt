@@ -53,6 +53,10 @@ class Store(private val ctx: Context) {
     var textScale: Float
         get() = textScaleState
         set(v) { textScaleState = v; prefs.edit().putFloat("textScale", v).apply() }
+    /** Google Drive id of the "My Cards App" folder, so the folder can be moved or renamed in Drive. */
+    var driveFolderId: String
+        get() = prefs.getString("driveFolderId", "")!!
+        set(v) = prefs.edit().putString("driveFolderId", v).apply()
     var lastSync: Long
         get() = prefs.getLong("lastSync", 0)
         set(v) = prefs.edit().putLong("lastSync", v).apply()
@@ -175,6 +179,7 @@ class Store(private val ctx: Context) {
         folderUri = ""
         s3 = S3Config()
         email = ""
+        driveFolderId = ""
         commit(emptyList())
         writeDeleted(emptySet())
         imgDir.listFiles()?.forEach { it.delete() }

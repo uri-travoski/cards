@@ -5,7 +5,7 @@
 Android app (Kotlin + Compose, package `au.sam.cards`) for bank, credit and loyalty cards, replacing Mobile Pocket.
 Cards always live in the cloud, never only on the phone (the phone keeps a cache). Three storage options, chosen on
 first run and changeable in Settings (switching re-uploads everything to the new place):
-- **Google Drive**: a visible folder named `My Cards App` in My Drive, scope `drive.file` (the app only sees files it created); `drive.appdata` is also requested once to move cards from the old hidden folder of 0.6 and earlier. Sign in with the same account on any phone.
+- **Google Drive**: a visible folder named `My Cards App` in My Drive, scope `drive.file` (the app only sees files it created); `drive.appdata` is also requested once to move cards from the old hidden folder of 0.6 and earlier. The folder is found by its id (remembered on the phone) or by an app marker, so it can be moved or renamed in Drive. Sign in with the same account on any phone.
 - **Cloud folder**: a folder picked with Android's file picker inside a cloud app (Dropbox, OneDrive, Nextcloud...).
   Folders on the phone itself (Downloads, internal storage) are refused in release builds.
 - **S3-compatible bucket** (AWS S3, Backblaze B2, Cloudflare R2, MinIO): endpoint, region, bucket, key pair; objects
