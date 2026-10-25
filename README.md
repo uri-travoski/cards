@@ -23,7 +23,7 @@ first run and changeable in Settings (switching re-uploads everything to the new
 - Help (question-mark icon): full setup guide for each storage, including the Google Cloud steps with this install's package and SHA-1.
 - Settings has Check for updates / Update now, which compares with the latest GitHub release and opens the APK link.
 - Bank covers debit and credit cards (one category). Text size option in Settings (Small to Huge).
-- Orange Material 3 theme (brand #FF5A00, light and dark) and an adaptive launcher icon.
+- Orange Material 3 theme (brand #FF5A00, light and dark) and an adaptive launcher icon (fanned cards on an orange-pink gradient, with a themed monochrome variant).
 - App lock with the phone's screen lock (also sets FLAG_SECURE, so no screenshots). Toggle in Settings.
 
 ## One-time Google setup (required before sign-in works)
