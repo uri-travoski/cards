@@ -64,11 +64,11 @@ private fun DriveDetails() {
             Text("Values to paste into Google (this installed app):", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Text("Package name", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
             Text(ctx.packageName, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
-            OutlinedButton({ copy("Package name", ctx.packageName) }, shape = ButtonShape) { Text("Copy package name") }
+            OBtn({ copy("Package name", ctx.packageName) }) { Text("Copy package name") }
             Text("SHA-1 certificate fingerprint", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
             Text(sha, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-            OutlinedButton({ copy("SHA-1", sha) }, shape = ButtonShape) { Text("Copy SHA-1") }
-            Button({ uri.openUri(CONSOLE) }, shape = ButtonShape) { Text("Open Google Cloud Console") }
+            OBtn({ copy("SHA-1", sha) }) { Text("Copy SHA-1") }
+            Btn({ uri.openUri(CONSOLE) }) { Text("Open Google Cloud Console") }
         }
     }
 }

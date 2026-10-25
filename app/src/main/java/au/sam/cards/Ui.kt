@@ -88,24 +88,33 @@ private val SmallShape = RoundedCornerShape(6.4.dp)
 private val CardShape = RoundedCornerShape(14.4.dp)
 val RowShape = RoundedCornerShape(11.2.dp)
 private val PhotoShape = RoundedCornerShape(9.6.dp)
-val ButtonShape = RoundedCornerShape(percent = 40) // pill buttons are 50%
+val ButtonShape = RoundedCornerShape(percent = 36) // pill buttons are 50%; earlier 40, now 10% tighter
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(3.2.dp), small = SmallShape, medium = PhotoShape,
     large = RoundedCornerShape(12.8.dp), extraLarge = RoundedCornerShape(22.4.dp),
 )
 
-@Composable
-private fun Btn(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) =
-    Button(onClick, modifier, enabled, shape = ButtonShape, content = content)
+// Buttons are 10% bigger than Material's defaults: height 40 to 44dp, padding, text 14 to 15.4sp and icons 18 to 20dp.
+private val BtnMinHeight = 44.dp
+private val BtnPadding = PaddingValues(horizontal = 26.4.dp, vertical = 8.8.dp)
+private val TextBtnPadding = PaddingValues(horizontal = 13.2.dp, vertical = 8.8.dp)
 
 @Composable
-private fun OBtn(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) =
-    OutlinedButton(onClick, modifier, enabled, shape = ButtonShape, content = content)
+private fun BtnLabel(content: @Composable () -> Unit) =
+    ProvideTextStyle(MaterialTheme.typography.labelLarge.copy(fontSize = 15.4.sp), content)
+
+@Composable
+fun Btn(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) =
+    Button(onClick, modifier.heightIn(min = BtnMinHeight), enabled, shape = ButtonShape, contentPadding = BtnPadding) { BtnLabel { content() } }
+
+@Composable
+fun OBtn(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) =
+    OutlinedButton(onClick, modifier.heightIn(min = BtnMinHeight), enabled, shape = ButtonShape, contentPadding = BtnPadding) { BtnLabel { content() } }
 
 @Composable
 private fun TBtn(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) =
-    TextButton(onClick, modifier, enabled, shape = ButtonShape, content = content)
+    TextButton(onClick, modifier.heightIn(min = BtnMinHeight), enabled, shape = ButtonShape, contentPadding = TextBtnPadding) { BtnLabel { content() } }
 
 private sealed interface Screen {
     object Home : Screen
@@ -869,7 +878,7 @@ private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> U
                     }
                 }
                 OBtn(onHelp) {
-                    Icon(HelpIcon, null, Modifier.size(18.dp))
+                    Icon(HelpIcon, null, Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Help and setup guide")
                 }
