@@ -28,6 +28,8 @@ class MainActivity : FragmentActivity() {
     var unlocked by mutableStateOf(false)
     var syncing by mutableStateOf(false)
     var status by mutableStateOf("")
+    /** Result of the last sync: null before any, true on success, false on failure. Details are in [status]. */
+    var syncOk by mutableStateOf<Boolean?>(null)
     var changingStorage by mutableStateOf(false)
 
     private var authWait: CompletableDeferred<Intent?>? = null
@@ -169,6 +171,7 @@ class MainActivity : FragmentActivity() {
     fun disconnect() {
         store.wipe()
         status = ""
+        syncOk = null
     }
 
     private suspend fun backend(interactive: Boolean): Backend? = when (store.storage) {
@@ -185,8 +188,10 @@ class MainActivity : FragmentActivity() {
             status = try {
                 val b = backend(interactive) ?: throw IllegalStateException("Google needs you to sign in again (Settings)")
                 val r = withContext(Dispatchers.IO) { Sync.run(store, b) }
+                syncOk = true
                 "Synced: ${r.up} up, ${r.down} down" + if (r.removed > 0) ", ${r.removed} removed" else ""
             } catch (e: Exception) {
+                syncOk = false
                 "Sync failed: ${e.message}"
             }
             syncing = false

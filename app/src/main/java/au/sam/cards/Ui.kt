@@ -277,6 +277,14 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
     // Active cards first, expired last; each group A to Z.
     val active = shown.filter { !it.expired }.sortedBy { it.name.lowercase() }
     val expired = shown.filter { it.expired }.sortedBy { it.name.lowercase() }
+    var showResult by remember { mutableStateOf(false) }
+    if (showResult) AlertDialog(
+        onDismissRequest = { showResult = false },
+        title = { Text(if (a.syncOk == true) "Sync succeeded" else "Sync failed") },
+        text = { Text(a.status.removePrefix("Sync failed: ")) },
+        confirmButton = { TextButton({ showResult = false; a.sync(true) }) { Text("Retry") } },
+        dismissButton = { TextButton({ showResult = false }) { Text("Close") } },
+    )
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // Solid orange header band; the status bar area above it is orange too.
@@ -285,10 +293,12 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
                     Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("My Cards", fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
-                        else IconButton({ a.sync(true) }) { Icon(SyncIcon, "Sync") }
+                        else when (a.syncOk) {
+                            null -> IconButton({ a.sync(true) }) { Icon(SyncIcon, "Sync") }
+                            else -> IconButton({ showResult = true }) { SyncResultBadge(a.syncOk == true) }
+                        }
                         IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
                     }
-                    if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = Color.White)
                 }
             }
             Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -915,4 +925,15 @@ private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> U
         confirmButton = { TBtn({ confirmOut = false; onClose(); a.disconnect() }) { Text("Remove") } },
         dismissButton = { TBtn({ confirmOut = false }) { Text("Cancel") } },
     )
+}
+
+/** Green tick or red cross on a white disc, so it reads on the orange header. */
+@Composable
+private fun SyncResultBadge(ok: Boolean) {
+    Surface(shape = CircleShape, color = Color.White, modifier = Modifier.size(28.dp)) {
+        Icon(
+            if (ok) Icons.Default.Check else Icons.Default.Close, if (ok) "Sync succeeded, tap for details" else "Sync failed, tap for details",
+            Modifier.padding(3.dp), tint = if (ok) Color(0xFF2E7D32) else Color(0xFFD32F2F),
+        )
+    }
 }

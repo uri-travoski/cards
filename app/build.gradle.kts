@@ -18,8 +18,8 @@ android {
         applicationId = "au.sam.cards"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.7.1"
+        versionCode = 11
+        versionName = "0.7.2"
         resourceConfigurations += listOf("en")
         // Test builds only: point the Drive client at a mock server and skip Google sign-in.
         buildConfigField("String", "MOCK_DRIVE", "\"${local.getProperty("cards.mockDrive", "")}\"")

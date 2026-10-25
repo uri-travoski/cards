@@ -19,7 +19,7 @@ first run and changeable in Settings (switching re-uploads everything to the new
   expiry month are marked Expired and listed below the Active ones; each group is A to Z.
 - Not encrypted by the app: card data (including CVV/PIN) is readable by whoever runs the storage.
 - Sync (`Sync.kt`): each card is `card-<id>-<updated>.json`, images are `img-*.jpg`. Newest `updated` wins; deletions
-  propagate. Runs on launch, after every save/delete, and on the Sync button. Works offline, syncs later.
+  propagate. Runs on launch, after every save/delete, and on the Sync button. Works offline, syncs later. The header icon shows the result: green tick or red cross; tap it for details and Retry.
 - Help (question-mark icon): full setup guide for each storage, including the Google Cloud steps with this install's package and SHA-1.
 - Settings has Check for updates / Update now, which compares with the latest GitHub release and opens the APK link.
 - Bank covers debit and credit cards (one category). Text size option in Settings (Small to Huge).
