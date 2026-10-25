@@ -90,7 +90,10 @@ class MainActivity : FragmentActivity() {
         }
         val client = Identity.getAuthorizationClient(this)
         val req = AuthorizationRequest.builder()
-            .setRequestedScopes(listOf(Scope("https://www.googleapis.com/auth/drive.appdata")))
+            .setRequestedScopes(listOf(
+                Scope("https://www.googleapis.com/auth/drive.file"), // the visible "My Cards App" folder
+                Scope("https://www.googleapis.com/auth/drive.appdata"), // only to move cards from older versions' hidden folder
+            ))
             .build()
         var res = client.authorize(req).await()
         if (res.hasResolution()) {

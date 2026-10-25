@@ -1,11 +1,11 @@
-# Cards (Open Source)
+# My Cards
 
 **[Download the latest APK](https://github.com/uri-travoski/cards/releases/latest/download/cards.apk)** (Android 8+, 64-bit ARM). Open the file on your phone and allow installing from your browser.
 
 Android app (Kotlin + Compose, package `au.sam.cards`) for bank, credit and loyalty cards, replacing Mobile Pocket.
 Cards always live in the cloud, never only on the phone (the phone keeps a cache). Three storage options, chosen on
 first run and changeable in Settings (switching re-uploads everything to the new place):
-- **Google Drive**: hidden `appDataFolder`, scope `drive.appdata`; sign in with the same account on any phone.
+- **Google Drive**: a visible folder named `My Cards App` in My Drive, scope `drive.file` (the app only sees files it created); `drive.appdata` is also requested once to move cards from the old hidden folder of 0.6 and earlier. Sign in with the same account on any phone.
 - **Cloud folder**: a folder picked with Android's file picker inside a cloud app (Dropbox, OneDrive, Nextcloud...).
   Folders on the phone itself (Downloads, internal storage) are refused in release builds.
 - **S3-compatible bucket** (AWS S3, Backblaze B2, Cloudflare R2, MinIO): endpoint, region, bucket, key pair; objects

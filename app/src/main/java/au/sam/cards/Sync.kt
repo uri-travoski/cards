@@ -15,6 +15,8 @@ object Sync {
     fun run(store: Store, drive: Backend): Report {
         var up = 0; var down = 0; var removed = 0
         val files = drive.list()
+        // A folder that was just created is empty: cards missing from it were never deleted, so upload them all again.
+        if (drive.createdNewStorage()) store.resetSync()
         val versions = HashMap<String, MutableList<Triple<Long, RemoteFile, String>>>()
         val images = HashMap<String, RemoteFile>()
         for (f in files) {

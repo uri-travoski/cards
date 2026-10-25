@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -207,10 +206,10 @@ private fun SetupScreen(a: MainActivity) {
             Spacer(Modifier.weight(1f))
             IconButton({ help = true }) { Icon(HelpIcon, "Help") }
         }
-        Text("Cards (Open Source)", fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("My Cards", fontSize = 36.sp, fontWeight = FontWeight.Bold)
         if (!s3Form) {
             Text("Where should your cards be saved? They are kept in the cloud, so any phone you connect gets them all back.")
-            Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive. Needs a one-time Google Cloud setup: open Help for the steps (the question-mark icon here, or Settings, Help).") { a.signIn() }
+            Choice("Google Drive", "Sign in with your Google account. Saved in a folder called My Cards App in your Drive. Needs a one-time Google Cloud setup: open Help for the steps (the question-mark icon here, or Settings, Help).") { a.signIn() }
             Choice("Cloud folder", "Pick a folder inside Dropbox, OneDrive, Nextcloud or another cloud app on this phone.") { a.pickFolder() }
             Choice("S3 / Backblaze B2 / Cloudflare R2", "Your own bucket on any S3-compatible service.") { s3Form = true }
         } else S3Form(a)
@@ -284,7 +283,7 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
             Column(Modifier.fillMaxWidth().background(Brand).padding(bottom = 8.dp)) {
                 CompositionLocalProvider(LocalContentColor provides Color.White) {
                     Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        Text("My Cards", fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                         if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
                         else IconButton({ a.sync(true) }) { Icon(SyncIcon, "Sync") }
                         IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
@@ -293,7 +292,8 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
                 }
             }
             Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(query, { query = it }, Modifier.weight(1f), placeholder = { Text("Search") }, singleLine = true)
+                // Search bar is 10% shorter than Material's 56dp default.
+                OutlinedTextField(query, { query = it }, Modifier.weight(1f).height(50.4.dp), textStyle = LocalTextStyle.current.copy(fontSize = 15.sp), placeholder = { Text("Search") }, singleLine = true)
                 Box {
                     IconButton({ menu = true }) {
                         Icon(FilterIcon, "Filter", tint = if (type.isEmpty()) LocalContentColor.current else MaterialTheme.colorScheme.primary)
@@ -341,27 +341,26 @@ private fun masked(n: String) = if (n.length > 4) "•••• " + n.takeLast(4
 @Composable
 private fun CardTile(c: Card, onClick: () -> Unit) {
     val ink = onColor(c.color)
+    // The tile has a fixed size, so its text follows the text-size setting only up to a point.
+    val d = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(d.density, minOf(d.fontScale, 1.15f))) {
     Column(
-        Modifier.fillMaxWidth()
-            // Card proportions, but taller when large text needs the room.
-            .layout { m, k ->
-                val p = m.measure(k.copy(minHeight = (k.maxWidth / 1.586f).toInt()))
-                layout(p.width, p.height) { p.placeRelative(0, 0) }
-            }
-            .alpha(if (c.expired) .55f else 1f).clip(RowShape)
+        // Fixed card shape: long names and big text are cut with "…", they never change the tile size.
+        Modifier.fillMaxWidth().aspectRatio(1.586f).alpha(if (c.expired) .55f else 1f).clip(RowShape)
             .background(Color(c.color)).clickable(onClick = onClick).padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(c.name, color = ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+        Text(c.name, color = ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Column {
             if (c.number.isNotEmpty() && c.type == "bank") {
-                Text(masked(c.number), color = ink, fontFamily = FontFamily.Monospace, fontSize = 13.sp, maxLines = 1)
+                Text(masked(c.number), color = ink, fontFamily = FontFamily.Monospace, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(
                 typeLabel(c.type) + if (c.expired) " · Expired ${c.expiry}" else if (c.expiry.isNotEmpty()) " · ${c.expiry}" else "",
-                color = ink.copy(alpha = .75f), fontSize = 12.sp, maxLines = 2,
+                color = ink.copy(alpha = .75f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
+    }
     }
 }
 
@@ -841,6 +840,7 @@ private fun storageLabel(a: MainActivity) = when (a.store.storage) {
     else -> ""
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> Unit) {
     var confirmOut by remember { mutableStateOf(false) }
@@ -865,9 +865,9 @@ private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> U
                     if (a.store.lastSync == 0L) "Not synced yet" else "Last sync " + DateUtils.getRelativeTimeSpanString(a.store.lastSync),
                     fontSize = 13.sp, color = MaterialTheme.colorScheme.outline,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OBtn({ a.sync(true) }, enabled = !a.syncing) { Text(if (a.syncing) "Syncing…" else "Sync now") }
-                    OBtn({ onClose(); a.status = ""; a.changingStorage = true }) { Text("Change storage") }
+                    OBtn({ onClose(); a.status = ""; a.changingStorage = true }) { Text("Change storage", maxLines = 1) }
                 }
                 val sizes = listOf("Small" to .9f, "Normal" to 1f, "Large" to 1.2f, "Huge" to 1.4f)
                 Text("Text size: " + (sizes.firstOrNull { it.second == a.store.textScale }?.first ?: "Custom"), fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)

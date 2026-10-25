@@ -25,6 +25,9 @@ interface Backend {
     fun download(id: String): ByteArray
     fun upload(name: String, mime: String, data: ByteArray): String
     fun delete(id: String)
+
+    /** True when [list] just created the (empty) place the cards live in, so "missing there" does not mean "deleted". */
+    fun createdNewStorage(): Boolean = false
 }
 
 /** A folder picked with Android's file picker, on a cloud app's provider (Dropbox, OneDrive, Nextcloud, ...). */
