@@ -3,7 +3,8 @@ package au.sam.cards
 import org.json.JSONObject
 import java.util.UUID
 
-val TYPES = listOf("bank" to "Bank", "credit" to "Credit", "loyalty" to "Loyalty", "other" to "Other")
+/** Bank covers debit and credit cards (older cards saved as "credit" are read as "bank"). */
+val TYPES = listOf("bank" to "Bank", "loyalty" to "Loyalty", "other" to "Other")
 
 val PALETTE = listOf(
     0xFF1E5BD8.toInt(), 0xFF0F8B6D.toInt(), 0xFFC62828.toInt(), 0xFF6A1B9A.toInt(),
@@ -46,7 +47,7 @@ data class Card(
 
     companion object {
         fun fromJson(o: JSONObject) = Card(
-            id = o.getString("id"), type = o.optString("type", "other"), name = o.optString("name"),
+            id = o.getString("id"), type = o.optString("type", "other").let { if (it == "credit") "bank" else it }, name = o.optString("name"),
             number = o.optString("number"), holder = o.optString("holder"), expiry = o.optString("expiry"),
             cvv = o.optString("cvv"), pin = o.optString("pin"), barcode = o.optString("barcode"),
             format = o.optString("format", "CODE_128"), notes = o.optString("notes"),

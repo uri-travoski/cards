@@ -78,11 +78,9 @@ suspend fun readCard(photo: Bitmap): CardGuess {
     var expiry: String? = null
     var holder: String? = null
     var brand: String? = null
-    var debit = false
     try {
         val text = recognizer.process(InputImage.fromBitmap(photo, 0)).await()
         val all = text.text.uppercase()
-        debit = "DEBIT" in all
         val lines = text.textBlocks.flatMap { it.lines }.map { it.text.uppercase().trim() }
         var numberLine = -1
         for ((i, line) in lines.withIndex()) {
@@ -102,7 +100,7 @@ suspend fun readCard(photo: Bitmap): CardGuess {
     }
     val code = readBarcode(listOf(photo))
     val type = when {
-        number != null -> if (debit) "bank" else "credit"
+        number != null -> "bank"
         code != null -> "loyalty"
         else -> null
     }

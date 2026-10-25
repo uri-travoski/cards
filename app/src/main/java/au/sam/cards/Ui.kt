@@ -54,9 +54,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -66,6 +69,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -109,38 +114,44 @@ private sealed interface Screen {
 }
 
 // Warm orange palette. Primary is a deep orange so white text on buttons stays readable (contrast above 4.5).
+// Brand orange #FF5A00 fills the header, status bar and add button. Text-sized accents (buttons, headings) use a deeper
+// tone of the same hue so they stay readable on the light background.
+private val Brand = Color(0xFFFF5A00)
+
 private val OrangeLight = lightColorScheme(
-    primary = Color(0xFFC25E00), onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFDCC2), onPrimaryContainer = Color(0xFF3B1A00),
-    secondary = Color(0xFF8A5100), onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFE0B8), onSecondaryContainer = Color(0xFF2C1600),
-    tertiary = Color(0xFF6C5E00), onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF7E58A), onTertiaryContainer = Color(0xFF211B00),
-    background = Color(0xFFFFF8F3), onBackground = Color(0xFF211A14),
-    surface = Color(0xFFFFF8F3), onSurface = Color(0xFF211A14),
-    surfaceVariant = Color(0xFFF5DFD0), onSurfaceVariant = Color(0xFF52443A),
-    outline = Color(0xFF857468), outlineVariant = Color(0xFFD8C3B5),
-    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFFF1E6), surfaceContainer = Color(0xFFFBEADB),
-    surfaceContainerHigh = Color(0xFFF6E4D4), surfaceContainerHighest = Color(0xFFF0DECE),
+    primary = Color(0xFFB33F00), onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDBCF), onPrimaryContainer = Color(0xFF3A0B00),
+    secondary = Color(0xFF8A4B2E), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFDDD0), onSecondaryContainer = Color(0xFF331100),
+    tertiary = Color(0xFF6C5D2F), onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFF5E1A7), onTertiaryContainer = Color(0xFF231B00),
+    background = Color(0xFFFFF8F6), onBackground = Color(0xFF211A17),
+    surface = Color(0xFFFFF8F6), onSurface = Color(0xFF211A17),
+    surfaceVariant = Color(0xFFF5DED6), onSurfaceVariant = Color(0xFF53433E),
+    outline = Color(0xFF85736D), outlineVariant = Color(0xFFD8C2BB),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFFFF1ED), surfaceContainer = Color(0xFFFCEAE4),
+    surfaceContainerHigh = Color(0xFFF6E4DE), surfaceContainerHighest = Color(0xFFF0DED8),
 )
 
 private val OrangeDark = darkColorScheme(
-    primary = Color(0xFFFFB77C), onPrimary = Color(0xFF4C2700),
-    primaryContainer = Color(0xFF6C3A00), onPrimaryContainer = Color(0xFFFFDCC2),
-    secondary = Color(0xFFFFB95C), onSecondary = Color(0xFF472A00),
-    secondaryContainer = Color(0xFF653E00), onSecondaryContainer = Color(0xFFFFDDB4),
-    tertiary = Color(0xFFDAC96F), onTertiary = Color(0xFF393000),
-    tertiaryContainer = Color(0xFF524600), onTertiaryContainer = Color(0xFFF7E58A),
-    background = Color(0xFF1E1610), onBackground = Color(0xFFEDE0D5),
-    surface = Color(0xFF1E1610), onSurface = Color(0xFFEDE0D5),
-    surfaceVariant = Color(0xFF52443A), onSurfaceVariant = Color(0xFFD8C3B5),
-    outline = Color(0xFFA08D80), outlineVariant = Color(0xFF52443A),
-    surfaceContainerLowest = Color(0xFF181009), surfaceContainerLow = Color(0xFF271E17), surfaceContainer = Color(0xFF2B221A),
-    surfaceContainerHigh = Color(0xFF362C24), surfaceContainerHighest = Color(0xFF41372E),
+    primary = Color(0xFFFFB59B), onPrimary = Color(0xFF5C1900),
+    primaryContainer = Color(0xFF832700), onPrimaryContainer = Color(0xFFFFDBCF),
+    secondary = Color(0xFFE7BDB0), onSecondary = Color(0xFF442A21),
+    secondaryContainer = Color(0xFF5D4037), onSecondaryContainer = Color(0xFFFFDBCF),
+    tertiary = Color(0xFFDBC68E), onTertiary = Color(0xFF3B2F05),
+    tertiaryContainer = Color(0xFF53461A), onTertiaryContainer = Color(0xFFF8E2A7),
+    background = Color(0xFF201A18), onBackground = Color(0xFFECE0DC),
+    surface = Color(0xFF201A18), onSurface = Color(0xFFECE0DC),
+    surfaceVariant = Color(0xFF53433E), onSurfaceVariant = Color(0xFFD8C2BB),
+    outline = Color(0xFFA08C86), outlineVariant = Color(0xFF53433E),
+    surfaceContainerLowest = Color(0xFF1A1210), surfaceContainerLow = Color(0xFF281E1B), surfaceContainer = Color(0xFF2C221F),
+    surfaceContainerHigh = Color(0xFF372C29), surfaceContainerHighest = Color(0xFF423733),
 )
 
 @Composable
 fun App(a: MainActivity) {
+    val base = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(base.density, base.fontScale * a.store.textScale)) {
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) OrangeDark else OrangeLight,
         shapes = AppShapes,
@@ -148,12 +159,12 @@ fun App(a: MainActivity) {
         val view = LocalView.current
         val dark = isSystemInDarkTheme()
         SideEffect {
-            // The status bar strip below is the primary colour: dark in light theme (light icons), light in dark theme (dark icons).
-            (view.context as? android.app.Activity)?.window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = dark }
+            // Brand-orange status bar strip below, so the status icons are light.
+            (view.context as? android.app.Activity)?.window?.let { WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = false }
         }
         Surface(Modifier.fillMaxSize()) {
           Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(MaterialTheme.colorScheme.primary))
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Brand))
             Box(Modifier.systemBarsPadding().imePadding()) {
                 when {
                     !a.unlocked -> LockScreen(a)
@@ -163,6 +174,7 @@ fun App(a: MainActivity) {
             }
         }
           }
+    }
     }
 }
 
@@ -260,15 +272,15 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             // Solid orange header band; the status bar area above it is orange too.
-            Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).padding(bottom = 8.dp)) {
-                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onPrimary) {
+            Column(Modifier.fillMaxWidth().background(Brand).padding(bottom = 8.dp)) {
+                CompositionLocalProvider(LocalContentColor provides Color.White) {
                     Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
-                        if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
                         else IconButton({ a.sync(true) }) { Icon(SyncIcon, "Sync") }
                         IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
                     }
-                    if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = .85f))
+                    if (a.status.isNotEmpty()) Text(a.status, Modifier.padding(horizontal = 16.dp), fontSize = 12.sp, color = Color.White)
                 }
             }
             Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -303,7 +315,7 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
         }
         FloatingActionButton(
             onAdd, Modifier.align(Alignment.BottomEnd).padding(20.dp), shape = CircleShape,
-            containerColor = Color(0xFFFF8F00), contentColor = Color(0xFF1E1610),
+            containerColor = Brand, contentColor = Color.White,
         ) { Icon(Icons.Default.Add, "Add card") }
     }
 }
@@ -321,18 +333,24 @@ private fun masked(n: String) = if (n.length > 4) "•••• " + n.takeLast(4
 private fun CardTile(c: Card, onClick: () -> Unit) {
     val ink = onColor(c.color)
     Column(
-        Modifier.fillMaxWidth().aspectRatio(1.586f).alpha(if (c.expired) .55f else 1f).clip(RowShape)
+        Modifier.fillMaxWidth()
+            // Card proportions, but taller when large text needs the room.
+            .layout { m, k ->
+                val p = m.measure(k.copy(minHeight = (k.maxWidth / 1.586f).toInt()))
+                layout(p.width, p.height) { p.placeRelative(0, 0) }
+            }
+            .alpha(if (c.expired) .55f else 1f).clip(RowShape)
             .background(Color(c.color)).clickable(onClick = onClick).padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(c.name, color = ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
         Column {
-            if (c.number.isNotEmpty() && c.type in listOf("bank", "credit")) {
+            if (c.number.isNotEmpty() && c.type == "bank") {
                 Text(masked(c.number), color = ink, fontFamily = FontFamily.Monospace, fontSize = 13.sp, maxLines = 1)
             }
             Text(
                 typeLabel(c.type) + if (c.expired) " · Expired ${c.expiry}" else if (c.expiry.isNotEmpty()) " · ${c.expiry}" else "",
-                color = ink.copy(alpha = .75f), fontSize = 12.sp, maxLines = 1,
+                color = ink.copy(alpha = .75f), fontSize = 12.sp, maxLines = 2,
             )
         }
     }
@@ -361,7 +379,7 @@ private fun CardFace(c: Card) {
     }
 }
 
-private fun grouped(c: Card) = if (c.type in listOf("bank", "credit")) c.number.filter { !it.isWhitespace() }.chunked(4).joinToString(" ") else c.number
+private fun grouped(c: Card) = if (c.type == "bank") c.number.filter { !it.isWhitespace() }.chunked(4).joinToString(" ") else c.number
 
 private fun toast(ctx: Context, msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
 
@@ -686,7 +704,7 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
             }
             if (n.number.isBlank() && g.number != null) { n = n.copy(number = g.number); done += "card number" }
             if (n.expiry.isBlank() && g.expiry != null) { n = n.copy(expiry = g.expiry); done += "expiry" }
-            if (n.holder.isBlank() && g.holder != null && n.type in listOf("bank", "credit")) { n = n.copy(holder = g.holder); done += "name on card" }
+            if (n.holder.isBlank() && g.holder != null && n.type == "bank") { n = n.copy(holder = g.holder); done += "name on card" }
             if (n.barcode.isBlank() && g.barcode != null) { n = n.copy(barcode = g.barcode, format = g.format ?: n.format); done += "barcode" }
             if (n.name.isBlank() && g.brand != null) { n = n.copy(name = g.brand); done += "name" }
             c = n
@@ -719,7 +737,7 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
             Btn({ a.store.save(c); a.sync(false); onDone(c.id) }, enabled = c.name.isNotBlank()) { Text("Save") }
         }
         if (autoFilled.isNotEmpty()) Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0B2), contentColor = Color(0xFF3E2723)), shape = RowShape,
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFDBCF), contentColor = Color(0xFF3A0B00)), shape = RowShape,
         ) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Check these details", fontWeight = FontWeight.Bold)
@@ -748,7 +766,7 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
         }
         Txt("Name", c.name) { c = c.copy(name = it) }
         Txt("Card number", c.number, KeyboardType.Number) { c = c.copy(number = it) }
-        if (c.type == "bank" || c.type == "credit") {
+        if (c.type == "bank") {
             Txt("Name on card", c.holder) { c = c.copy(holder = it) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(Modifier.weight(1f)) { ExpiryField(c.expiry) { c = c.copy(expiry = it) } }
@@ -841,6 +859,14 @@ private fun SettingsDialog(a: MainActivity, onHelp: () -> Unit, onClose: () -> U
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OBtn({ a.sync(true) }, enabled = !a.syncing) { Text(if (a.syncing) "Syncing…" else "Sync now") }
                     OBtn({ onClose(); a.status = ""; a.changingStorage = true }) { Text("Change storage") }
+                }
+                val sizes = listOf("Small" to .9f, "Normal" to 1f, "Large" to 1.2f, "Huge" to 1.4f)
+                Text("Text size: " + (sizes.firstOrNull { it.second == a.store.textScale }?.first ?: "Custom"), fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Each chip is "Aa" drawn at the size it selects, whatever the current setting is.
+                    sizes.forEachIndexed { i, (label, v) ->
+                        FilterChip(a.store.textScale == v, { a.store.textScale = v }, { Text("Aa", fontSize = (13 + i * 3).sp / a.store.textScale, modifier = Modifier.semantics { contentDescription = label }) })
+                    }
                 }
                 OBtn(onHelp) {
                     Icon(HelpIcon, null, Modifier.size(18.dp))

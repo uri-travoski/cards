@@ -48,6 +48,11 @@ class Store(private val ctx: Context) {
     var lockEnabled: Boolean
         get() = prefs.getBoolean("lock", true)
         set(v) = prefs.edit().putBoolean("lock", v).apply()
+    private var textScaleState by mutableStateOf(prefs.getFloat("textScale", 1f))
+    /** User's extra text size on top of the phone's font size: 1 is normal. */
+    var textScale: Float
+        get() = textScaleState
+        set(v) { textScaleState = v; prefs.edit().putFloat("textScale", v).apply() }
     var lastSync: Long
         get() = prefs.getLong("lastSync", 0)
         set(v) = prefs.edit().putLong("lastSync", v).apply()
