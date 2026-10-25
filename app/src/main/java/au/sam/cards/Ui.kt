@@ -144,7 +144,7 @@ private fun SetupScreen(a: MainActivity) {
             Spacer(Modifier.weight(1f))
             IconButton({ help = true }) { Icon(HelpIcon, "Help") }
         }
-        Text("Cards", fontSize = 36.sp, fontWeight = FontWeight.Bold)
+        Text("Cards (Open Source)", fontSize = 30.sp, fontWeight = FontWeight.Bold)
         if (!s3Form) {
             Text("Where should your cards be saved? They are kept in the cloud, so any phone you connect gets them all back.")
             Choice("Google Drive", "Sign in with your Google account. Stored in a hidden app folder of your Drive. Needs a one-time Google Cloud setup: tap the help icon for the steps.") { a.signIn() }
@@ -217,7 +217,7 @@ private fun Home(a: MainActivity, onOpen: (String) -> Unit, onAdd: () -> Unit, o
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Cards", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Cards (Open Source)", fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f))
                 if (a.syncing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 else IconButton({ a.sync(true) }) { Icon(Icons.Default.Refresh, "Sync") }
                 IconButton(onSettings) { Icon(Icons.Default.Settings, "Settings") }
@@ -580,6 +580,7 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
     var captureFile by remember { mutableStateOf<File?>(null) }
     var cropping by remember { mutableStateOf<Bitmap?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var autoFilled by remember { mutableStateOf(emptyList<String>()) }
 
     BackHandler { if (cropping == null) onDone(if (isNew) null else original.id) }
 
@@ -609,7 +610,7 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
         busy = true
         try {
             val e = readExpiry(photos())
-            if (e != null) c = c.copy(expiry = e) else toast(ctx, "No expiry date found in the photos")
+            if (e != null) { c = c.copy(expiry = e); autoFilled = (autoFilled + "expiry").distinct() } else toast(ctx, "No expiry date found in the photos")
         } catch (ex: Exception) {
             toast(ctx, "Couldn't read the photos: ${ex.message}")
         }
@@ -619,9 +620,33 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
         busy = true
         try {
             val r = readBarcode(photos())
-            if (r != null) c = c.copy(barcode = r.first, format = r.second) else toast(ctx, "No barcode found in the photos")
+            if (r != null) { c = c.copy(barcode = r.first, format = r.second); autoFilled = (autoFilled + "barcode").distinct() } else toast(ctx, "No barcode found in the photos")
         } catch (ex: Exception) {
             toast(ctx, "Couldn't read the photos: ${ex.message}")
+        }
+        busy = false
+    }
+
+    // Fills only the blanks, never what the user typed, and lists what it filled so the user is told to check it.
+    fun autoFill(photo: Bitmap, firstPhoto: Boolean) = scope.launch {
+        busy = true
+        try {
+            val g = readCard(photo)
+            val done = mutableListOf<String>()
+            var n = c
+            if (firstPhoto && isNew && g.type != null && (g.number != null || g.barcode != null)) {
+                n = n.copy(type = g.type)
+                done += "type"
+            }
+            if (n.number.isBlank() && g.number != null) { n = n.copy(number = g.number); done += "card number" }
+            if (n.expiry.isBlank() && g.expiry != null) { n = n.copy(expiry = g.expiry); done += "expiry" }
+            if (n.holder.isBlank() && g.holder != null && n.type in listOf("bank", "credit")) { n = n.copy(holder = g.holder); done += "name on card" }
+            if (n.barcode.isBlank() && g.barcode != null) { n = n.copy(barcode = g.barcode, format = g.format ?: n.format); done += "barcode" }
+            if (n.name.isBlank() && g.brand != null) { n = n.copy(name = g.brand); done += "name" }
+            c = n
+            if (done.isNotEmpty()) autoFilled = (autoFilled + done).distinct()
+        } catch (ex: Exception) {
+            toast(ctx, "Couldn't read the photo: ${ex.message}")
         }
         busy = false
     }
@@ -631,8 +656,10 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
         CropScreen(crop) { out ->
             cropping = null
             if (out != null) {
+                val first = c.front.isEmpty() && c.back.isEmpty()
                 val name = a.store.saveBitmap(out)
                 c = if (target == "front") c.copy(front = name) else c.copy(back = name)
+                autoFill(out, first)
             }
         }
         return
@@ -644,6 +671,18 @@ private fun Edit(a: MainActivity, original: Card, onDone: (String?) -> Unit) {
             Spacer(Modifier.weight(1f))
             if (busy) CircularProgressIndicator(Modifier.size(20.dp).padding(end = 4.dp), strokeWidth = 2.dp)
             Btn({ a.store.save(c); a.sync(false); onDone(c.id) }, enabled = c.name.isNotBlank()) { Text("Save") }
+        }
+        if (autoFilled.isNotEmpty()) Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0B2), contentColor = Color(0xFF3E2723)), shape = RowShape,
+        ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Check these details", fontWeight = FontWeight.Bold)
+                Text(
+                    "The app filled in " + autoFilled.joinToString(", ") + " from your photo. Reading a photo can get digits, letters " +
+                        "and dates wrong. Double-check every detail against your card before you save.",
+                    fontSize = 13.sp,
+                )
+            }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(TYPES) { (k, v) -> FilterChip(c.type == k, { c = c.copy(type = k) }, { Text(v) }) }

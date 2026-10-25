@@ -1,4 +1,4 @@
-# Cards
+# Cards (Open Source)
 
 **[Download the latest APK](https://github.com/uri-travoski/cards/releases/latest/download/cards.apk)** (Android 8+, 64-bit ARM). Open the file on your phone and allow installing from your browser.
 
@@ -14,6 +14,7 @@ first run and changeable in Settings (switching re-uploads everything to the new
 - Per card: type, name, number, holder, expiry, CVV, PIN, notes, colour (wheel), front/back photos (cropped after
   capture; tap a photo in the details to view it full screen with pinch zoom), barcode (scan with Google's code
   scanner, detect from a photo, or type; the type is detected; drawn with ZXing at full brightness).
+- Auto-fill: adding a card photo reads number (Luhn-checked), expiry, name on card, barcode, brand and type on the phone, fills only empty fields and always shows a "check these details" warning. CVV/PIN are never read.
 - Expiry: typed (MM/YY) or read from the photo with ML Kit OCR (latest date found). Cards past the end of their
   expiry month are marked Expired and listed below the Active ones; each group is A to Z.
 - Not encrypted by the app: card data (including CVV/PIN) is readable by whoever runs the storage.
